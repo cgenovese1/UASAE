@@ -7,6 +7,7 @@ from backend.core.config import settings
 from backend.api.routes.projects import router as projects_router
 from backend.api.routes.verification import router as verification_router
 from backend.api.routes.execution import router as execution_router
+from backend.api.routes.evidence import router as evidence_router
 
 app = FastAPI(
     title="UASAE",
@@ -28,6 +29,7 @@ app.add_middleware(
 app.include_router(projects_router)
 app.include_router(verification_router)
 app.include_router(execution_router)
+app.include_router(evidence_router)
 
 
 @app.get("/api/health")
