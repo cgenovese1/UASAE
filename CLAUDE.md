@@ -60,12 +60,20 @@ uasae/
 
 | Phase | Status | Description |
 |-------|--------|-------------|
-| 0 | ✅ Done | Constitution & SSOT |
-| 1 | 🔄 Active | Repository Understanding |
-| 2 | Planned | Verification Case Engine |
-| 3 | Planned | Deterministic Execution (API/Browser/DB) |
-| 4 | Planned | Evidence & Verdict |
-| 5+ | Future | Risk, Investigation, Temporal, Agents, MCP, CI/CD... |
+| 0  | ✅ Done | Constitution & SSOT |
+| 1  | ✅ Done | Repository Understanding (git ingestion, artifact discovery, software model, requirements extractor) |
+| 2  | ✅ Done | Verification Case Engine (invariant registry, case engine, scenario generator, case store) |
+| 3  | ✅ Done | Execution Fabric (API/Browser/DB adapters, verdict engine, execution engine) |
+| 4  | ✅ Done | Evidence & Verdict Persistence (ABC stores, Supabase impls, SQL migrations, evidence API) |
+| 5  | ✅ Done | Risk Engine & Planning (RiskEngine, ChangeImpactAnalyzer, VerificationBudget) |
+| 6  | ✅ Done | Autonomous Investigation (FailureAnalyzer, RegressionTracker) |
+| 7  | ✅ Done | Temporal Intelligence (DriftDetector, ArtifactTimeline, StalenessMeter) |
+| 8  | ✅ Done | Verification Compiler (VerificationCompiler — abstract cases → concrete scenarios) |
+| 9  | ✅ Done | Agent Layer / Orchestration (AssuranceCycle — full discovery→compile→plan→execute→investigate loop) |
+| 10 | ✅ Done | MCP Server (UASAEMCPServer — list_cases, compile_case, get_risk_summary, get_case) |
+| 11 | ✅ Done | CI/CD Integration (VerificationGate, GatePolicy, CIReport, GitHub comment formatter) |
+| 12 | ✅ Done | Self-Verification (INV-001/002/004/005/007 proofs, ABC compliance, P0 ranking guarantee) |
+| 13 | ✅ Done | Frontend Dashboard (Next.js 14 App Router, dashboard, risk page, typed API client) |
 
 ---
 
