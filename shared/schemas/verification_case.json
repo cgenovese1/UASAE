@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://uasae.dev/schemas/verification_case/v1",
+  "title": "VerificationCase",
+  "description": "Canonical UASAE Verification Case — abstract definition of something that must be verified. Section 21 of SSOT.",
+  "type": "object",
+  "required": ["id", "version", "status", "intent", "priority", "created_at", "updated_at"],
+  "properties": {
+    "id":                  { "type": "string", "format": "uuid" },
+    "version":             { "type": "string" },
+    "status":              { "type": "string", "enum": ["draft", "active", "superseded", "retired"] },
+    "intent":              { "type": "string" },
+    "requirement_ids":     { "type": "array", "items": { "type": "string", "format": "uuid" } },
+    "invariant_ids":       { "type": "array", "items": { "type": "string", "format": "uuid" } },
+    "business_objective":  { "type": "string" },
+    "priority":            { "type": "string", "enum": ["p0", "p1", "p2", "p3", "p4"] },
+    "impact":              { "type": "number", "minimum": 0, "maximum": 1 },
+    "likelihood":          { "type": "number", "minimum": 0, "maximum": 1 },
+    "uncertainty":         { "type": "number", "minimum": 0, "maximum": 1 },
+    "source_artifact_ids": { "type": "array", "items": { "type": "string", "format": "uuid" } },
+    "created_at":          { "type": "string", "format": "date-time" },
+    "updated_at":          { "type": "string", "format": "date-time" },
+    "permanent_regression": { "type": "boolean", "default": false }
+  },
+  "additionalProperties": false
+}
