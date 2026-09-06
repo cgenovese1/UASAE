@@ -2,6 +2,9 @@
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.hatch.build.targets.wheel]
+packages = ["backend", "core", "intelligence", "verification", "execution", "evidence", "adapters", "api"]
+
 [project]
 name = "uasae-backend"
 version = "0.1.0"
