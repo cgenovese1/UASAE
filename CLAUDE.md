@@ -68,12 +68,16 @@ uasae/
 | 5  | ✅ Done | Risk Engine & Planning (RiskEngine, ChangeImpactAnalyzer, VerificationBudget) |
 | 6  | ✅ Done | Autonomous Investigation (FailureAnalyzer, RegressionTracker) |
 | 7  | ✅ Done | Temporal Intelligence (DriftDetector, ArtifactTimeline, StalenessMeter) |
-| 8  | ✅ Done | Verification Compiler (VerificationCompiler — abstract cases → concrete scenarios) |
+| 8  | ✅ Done | Verification Compiler (VerificationCompiler — abstract cases → concrete scenarios; AI semantic expansion) |
 | 9  | ✅ Done | Agent Layer / Orchestration (AssuranceCycle — full discovery→compile→plan→execute→investigate loop) |
-| 10 | ✅ Done | MCP Server (UASAEMCPServer — list_cases, compile_case, get_risk_summary, get_case) |
+| 10 | ✅ Done | MCP Server (UASAEMCPServer — list_cases, compile_case, get_risk_summary, get_case; FastAPI HTTP transport) |
 | 11 | ✅ Done | CI/CD Integration (VerificationGate, GatePolicy, CIReport, GitHub comment formatter) |
 | 12 | ✅ Done | Self-Verification (INV-001/002/004/005/007 proofs, ABC compliance, P0 ranking guarantee) |
-| 13 | ✅ Done | Frontend Dashboard (Next.js 14 App Router, dashboard, risk page, typed API client) |
+| 13 | ✅ Done | Frontend Dashboard (Next.js 14 App Router, dashboard, risk, cases, verdicts, cycles pages) |
+| 14 | ✅ Done | Shared DI Container + Cycle Persistence (api/deps.py, CycleStore ABC + impls, GET/POST /cycles endpoints; fixes disconnected store singletons) |
+| 15 | ✅ Done | End-to-End Pipeline (POST /analyze-and-generate — repo analysis → requirements extraction → case generation in one call) |
+| 16 | ✅ Done | SQL Migration 002 (assurance_cycles + verification_cases tables; RLS enabled) |
+| 17 | ✅ Done | Frontend Interactivity (trigger cycle button on cycles page, cases drill-down to verdicts, clickable case rows) |
 
 ---
 

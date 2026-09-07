@@ -53,9 +53,35 @@ export interface HealthStatus {
   env: string;
 }
 
+export interface CycleReport {
+  cycle_id: string;
+  status: string;
+  started_at: string;
+  completed_at: string | null;
+  cases_evaluated: number;
+  scenarios_compiled: number;
+  scenarios_executed: number;
+  verdicts: Record<string, number>;
+  regressions_detected: number;
+  security_findings: number;
+  duration_seconds: number;
+  budget_seconds: number;
+  errors: string[];
+}
+
 // ---------------------------------------------------------------------------
 // API calls
 // ---------------------------------------------------------------------------
+
+async function post<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText} — ${path}`);
+  return res.json() as Promise<T>;
+}
 
 export const api = {
   health: () => get<HealthStatus>("/health"),
@@ -63,6 +89,13 @@ export const api = {
   cases: {
     list: (limit = 50) =>
       get<{ total: number; cases: VerificationCase[] }>(`/verification/cases?limit=${limit}`),
+    get: (caseId: string) =>
+      get<VerificationCase>(`/verification/cases/${caseId}`),
+    generateFromInvariants: () =>
+      post<{ generated: number; cases: VerificationCase[] }>(
+        "/verification/cases/from-invariants",
+        {}
+      ),
   },
 
   verdicts: {
@@ -72,6 +105,23 @@ export const api = {
       ),
     latest: (scenarioId: string) =>
       get<VerdictSummary>(`/evidence/verdicts/latest/${scenarioId}`),
+  },
+
+  cycles: {
+    list: (limit = 50) =>
+      get<{ total: number; cycles: CycleReport[] }>(`/execution/cycles?limit=${limit}`),
+    get: (cycleId: string) =>
+      get<CycleReport>(`/execution/cycles/${cycleId}`),
+    trigger: (opts?: { environment?: string; budget_seconds?: number; changed_files?: string[] }) =>
+      post<{ message: string; environment: string; budget_seconds: number; poll: string }>(
+        "/execution/cycles",
+        opts ?? {}
+      ),
+    triggerSync: (opts?: { environment?: string; budget_seconds?: number }) =>
+      post<CycleReport & { summary: string }>(
+        "/execution/cycles/sync",
+        opts ?? {}
+      ),
   },
 
   mcp: {

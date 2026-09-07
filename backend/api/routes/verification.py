@@ -9,20 +9,18 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from backend.api.deps import get_case_store
 from backend.core.ontology import RiskPriority, VerificationCaseStatus
 from backend.verification.cases import (
     InvariantRegistry,
     UASAE_INVARIANTS,
     VerificationCaseEngine,
-    VerificationCaseStore,
 )
 from backend.verification.scenarios import GenomeDimension, ScenarioGenerator
 
 router = APIRouter(prefix="/api/verification", tags=["verification"])
 
-# Module-level singletons (replaced with DI container in Phase 4)
 _registry = InvariantRegistry()
-_store = VerificationCaseStore()
 
 
 # ---------------------------------------------------------------------------
@@ -73,7 +71,7 @@ async def generate_cases_from_invariants(req: GenerateCasesFromInvariantsRequest
         invariants = UASAE_INVARIANTS
 
     cases = engine.invariants_to_cases(invariants)
-    saved = [_store.save(c) for c in cases]
+    saved = [get_case_store().save(c) for c in cases]
 
     return {
         "generated": len(saved),
@@ -111,7 +109,7 @@ async def generate_cases_from_requirements(req: GenerateCasesFromRequirementsReq
     async with VerificationCaseEngine() as engine:
         cases, total_tokens = await engine.from_extracted_requirements(extracted)
 
-    saved = [_store.save(c) for c in cases]
+    saved = [get_case_store().save(c) for c in cases]
 
     return {
         "generated": len(saved),
@@ -135,7 +133,7 @@ async def list_cases(
     limit: int = 100,
     offset: int = 0,
 ) -> dict:
-    cases = _store.list(
+    cases = get_case_store().list(
         status=VerificationCaseStatus(status) if status else None,
         priority=RiskPriority(priority) if priority else None,
         limit=limit,
@@ -143,7 +141,7 @@ async def list_cases(
     )
     return {
         "total": len(cases),
-        "counts": _store.count(),
+        "counts": get_case_store().count(),
         "cases": [
             {
                 "id": str(c.id),
@@ -162,7 +160,7 @@ async def list_cases(
 async def get_case(case_id: UUID) -> dict:
     from backend.verification.cases import CaseNotFound
     try:
-        case = _store.get(case_id)
+        case = get_case_store().get(case_id)
     except CaseNotFound:
         raise HTTPException(status_code=404, detail=f"Case {case_id} not found")
     return case.model_dump(mode="json")
@@ -185,7 +183,7 @@ async def generate_scenarios(req: GenerateScenariosRequest) -> dict:
     """Use AI to generate Scenarios for an existing VerificationCase."""
     from backend.verification.cases import CaseNotFound
     try:
-        case = _store.get(req.case_id)
+        case = get_case_store().get(req.case_id)
     except CaseNotFound:
         raise HTTPException(status_code=404, detail=f"Case {req.case_id} not found")
 
@@ -233,7 +231,7 @@ async def generate_boundary_scenarios(case_id: UUID, field_name: str, field_type
     """Deterministic boundary-value scenarios for a specific input field."""
     from backend.verification.cases import CaseNotFound
     try:
-        case = _store.get(case_id)
+        case = get_case_store().get(case_id)
     except CaseNotFound:
         raise HTTPException(status_code=404, detail=f"Case {case_id} not found")
 

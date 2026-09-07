@@ -82,7 +82,11 @@ export default async function CasesPage() {
               </thead>
               <tbody className="divide-y divide-gray-800">
                 {cases.map((c) => (
-                  <tr key={c.id} className="hover:bg-gray-900 transition-colors">
+                  <tr
+                    key={c.id}
+                    className="cursor-pointer hover:bg-gray-900 transition-colors"
+                    onClick={() => { window.location.href = `/cases/${c.id}`; }}
+                  >
                     <td className="px-4 py-3">
                       <PriorityBadge priority={c.priority} />
                     </td>

@@ -173,3 +173,67 @@ async def test_supabase_verdict_store_not_found() -> None:
     store = SupabaseVerdictStore()
     with pytest.raises(VerdictNotFound):
         await store.get(uuid4())
+
+
+# ---------------------------------------------------------------------------
+# CycleStore tests
+# ---------------------------------------------------------------------------
+
+
+def _make_cycle_report():
+    from backend.core.orchestration.cycle import CycleReport, CycleStatus
+    return CycleReport(
+        cycle_id=uuid4(),
+        started_at=datetime.now(timezone.utc),
+        completed_at=datetime.now(timezone.utc),
+        status=CycleStatus.COMPLETED,
+        cases_evaluated=2,
+        scenarios_compiled=6,
+        scenarios_executed=6,
+        verdicts={"verified": 5, "failed": 1},
+        regressions_detected=0,
+        security_findings=0,
+        duration_seconds=8.3,
+        budget_seconds=300,
+        errors=[],
+    )
+
+
+@pytest.mark.asyncio
+async def test_supabase_cycle_store_round_trip() -> None:
+    from backend.execution.cycle_store import SupabaseCycleStore
+
+    store = SupabaseCycleStore()
+    report = _make_cycle_report()
+
+    saved = await store.save(report)
+    assert saved.cycle_id == report.cycle_id
+
+    fetched = await store.get(report.cycle_id)
+    assert fetched.cycle_id == report.cycle_id
+    assert fetched.cases_evaluated == 2
+
+
+@pytest.mark.asyncio
+async def test_supabase_cycle_store_list() -> None:
+    from backend.execution.cycle_store import SupabaseCycleStore
+
+    store = SupabaseCycleStore()
+    r1 = _make_cycle_report()
+    r2 = _make_cycle_report()
+    await store.save(r1)
+    await store.save(r2)
+
+    results = await store.list(limit=50)
+    ids = {r.cycle_id for r in results}
+    assert r1.cycle_id in ids
+    assert r2.cycle_id in ids
+
+
+@pytest.mark.asyncio
+async def test_supabase_cycle_store_not_found() -> None:
+    from backend.execution.cycle_store import SupabaseCycleStore, CycleNotFound
+
+    store = SupabaseCycleStore()
+    with pytest.raises(CycleNotFound):
+        await store.get(uuid4())
