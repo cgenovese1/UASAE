@@ -184,6 +184,8 @@ class VerificationCompiler:
             AIMessage(
                 role="user",
                 content=(
+                    "You are a software verification planner. Generate edge-case scenarios "
+                    "from the requirement below. Return JSON only.\n\n"
                     f"Verification case intent:\n{case.intent}\n\n"
                     f"Business objective: {case.business_objective or 'not specified'}\n\n"
                     "Generate 3-5 semantic edge-case scenarios not covered by structural testing. "
@@ -191,10 +193,10 @@ class VerificationCompiler:
                 ),
             )
         ]
-        expansion: _SemanticExpansion = await self._ai_client.chat_structured(  # type: ignore[union-attr]
+        # chat_structured returns (model_instance, usage) — unpack accordingly
+        expansion, _ = await self._ai_client.chat_structured(  # type: ignore[union-attr]
             messages=messages,
-            response_model=_SemanticExpansion,
-            system="You are a software verification planner generating edge-case scenarios from requirements.",
+            output_model=_SemanticExpansion,
         )
 
         now = datetime.now(timezone.utc)
