@@ -22,6 +22,8 @@ from uuid import UUID, uuid4
 
 import structlog
 
+from typing import TYPE_CHECKING
+
 from backend.core.ontology import RiskPriority, VerificationCase, VerdictStatus
 from backend.evidence.store import EvidenceStore, InMemoryEvidenceStore
 from backend.evidence.verdict_store import InMemoryVerdictStore, VerdictStore
@@ -31,6 +33,9 @@ from backend.intelligence.investigation.analyzer import FailureAnalyzer, Regress
 from backend.intelligence.risk.engine import ChangeImpactAnalyzer, RiskEngine, VerificationBudget
 from backend.verification.cases.store import VerificationCaseStore
 from backend.verification.compiler import VerificationCompiler
+
+if TYPE_CHECKING:
+    from backend.core.ai.client import AIClient
 
 log = structlog.get_logger(__name__)
 
@@ -101,6 +106,7 @@ class AssuranceCycle:
         run_store: ExecutionStore | None = None,
         budget_seconds: int = 3600,
         environment: str = "test",
+        ai_client: "AIClient | None" = None,
     ) -> None:
         self._engine = execution_engine
         self._case_store = case_store
@@ -109,7 +115,10 @@ class AssuranceCycle:
         self._run_store = run_store or ExecutionStore()
         self._budget = budget_seconds
         self._env = environment
-        self._compiler = VerificationCompiler(environment=environment)
+        self._compiler = VerificationCompiler(environment=environment, ai_client=ai_client)
+        # Wire the cycle's stores into the engine so evidence/verdicts are persisted
+        self._engine._evidence_store = self._evidence_store
+        self._engine._verdict_store = self._verdict_store
         self._failure_analyzer = FailureAnalyzer()
         self._regression_tracker = RegressionTracker()
 
@@ -138,9 +147,9 @@ class AssuranceCycle:
         budget = VerificationBudget.plan(ranked, self._budget)
         priority_case_ids = set(budget.case_ids)
 
-        # 2. COMPILE — generate scenarios for selected cases
+        # 2. COMPILE — generate scenarios for selected cases (async for AI expansion)
         selected_cases = [c for c in cases if c.id in priority_case_ids]
-        compilation_results = self._compiler.compile_batch(selected_cases)
+        compilation_results = await self._compiler.compile_batch_async(selected_cases)
         all_scenarios = [s for r in compilation_results for s in r.scenarios]
 
         log.info(

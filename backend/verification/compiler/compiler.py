@@ -17,10 +17,19 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
+
+import structlog
+from pydantic import BaseModel
 
 from backend.core.ontology import RiskPriority, Scenario, VerificationCase
 from backend.verification.scenarios.generator import GenomeDimension, ScenarioGenerator
+
+if TYPE_CHECKING:
+    from backend.core.ai.client import AIClient, AIMessage
+
+log = structlog.get_logger(__name__)
 
 
 @dataclass
@@ -47,6 +56,15 @@ class CompilationResult:
 _DEFAULT_ADAPTER = "api"
 
 
+class _SemanticScenarioSpec(BaseModel):
+    description: str
+    expected_behavior: str
+
+
+class _SemanticExpansion(BaseModel):
+    scenarios: list[_SemanticScenarioSpec]
+
+
 class VerificationCompiler:
     """
     Compiles a VerificationCase into a set of Scenarios.
@@ -55,8 +73,7 @@ class VerificationCompiler:
     1. Auth boundary (always — INV-001 requires observable auth evidence)
     2. Input boundary (type-driven: string/integer limits, injection patterns)
     3. Failure scenario (what happens when the system is at fault)
-    4. State variation (precondition states if provided)
-    5. Sequence scenarios (order-dependent behavior if case intent implies it)
+    4. Semantic edge cases (AI-assisted — requires ai_client; skipped otherwise)
 
     Each layer adds to the Genome without replacing prior scenarios.
     Layers that cannot be applied to a case (e.g., no inputs) log a skip.
@@ -66,10 +83,12 @@ class VerificationCompiler:
         self,
         default_adapter: str = _DEFAULT_ADAPTER,
         environment: str = "test",
+        ai_client: "AIClient | None" = None,
     ) -> None:
         self._adapter = default_adapter
         self._env = environment
         self._generator = ScenarioGenerator()
+        self._ai_client = ai_client
 
     def compile(self, case: VerificationCase) -> CompilationResult:
         scenarios: list[Scenario] = []
@@ -108,8 +127,8 @@ class VerificationCompiler:
         else:
             skipped.add(GenomeDimension.FAILURE)
 
-        # --- Layer 4: Semantic / AI expansion (deferred — Phase 9 wires it) ---
-        unknown.append("Semantic expansion deferred to Phase 9 AI orchestration")
+        # --- Layer 4: Semantic / AI expansion (use compile_async when ai_client is set) ---
+        unknown.append("Semantic expansion requires async path — call compile_async()")
         skipped.add("semantic")
 
         # Deduplicate by description (safety net only — generator should be clean)
@@ -132,6 +151,77 @@ class VerificationCompiler:
 
     def compile_batch(self, cases: list[VerificationCase]) -> list[CompilationResult]:
         return [self.compile(c) for c in cases]
+
+    async def compile_async(self, case: VerificationCase) -> CompilationResult:
+        """Compile with AI semantic expansion when an ai_client is configured."""
+        result = self.compile(case)
+        if self._ai_client is None:
+            return result
+
+        try:
+            ai_scenarios = await self._expand_semantically(case)
+            combined = list(result.scenarios) + ai_scenarios
+            covered = result.dimensions_covered | {"semantic"}
+            skipped = result.dimensions_skipped - {"semantic"}
+            unknown = [u for u in result.unknown_surface if "Semantic expansion" not in u]
+            return CompilationResult(
+                case_id=result.case_id,
+                scenarios=combined,
+                dimensions_covered=covered,
+                dimensions_skipped=skipped,
+                unknown_surface=unknown,
+                compiled_at=result.compiled_at,
+            )
+        except Exception as exc:
+            log.warning("semantic_expansion_failed", case_id=str(case.id), error=str(exc))
+            return result
+
+    async def _expand_semantically(self, case: VerificationCase) -> list[Scenario]:
+        """Call the AI to generate semantic edge-case scenarios (INV-009: case intent in user role)."""
+        from backend.core.ai.client import AIMessage
+
+        messages: list[AIMessage] = [
+            AIMessage(
+                role="user",
+                content=(
+                    f"Verification case intent:\n{case.intent}\n\n"
+                    f"Business objective: {case.business_objective or 'not specified'}\n\n"
+                    "Generate 3-5 semantic edge-case scenarios not covered by structural testing. "
+                    "Each scenario needs a concise description and the expected system behavior."
+                ),
+            )
+        ]
+        expansion: _SemanticExpansion = await self._ai_client.chat_structured(  # type: ignore[union-attr]
+            messages=messages,
+            response_model=_SemanticExpansion,
+            system="You are a software verification planner generating edge-case scenarios from requirements.",
+        )
+
+        now = datetime.now(timezone.utc)
+        scenarios: list[Scenario] = []
+        for spec in expansion.scenarios:
+            try:
+                scenarios.append(
+                    Scenario(
+                        id=uuid4(),
+                        case_id=case.id,
+                        description=f"[SEMANTIC] {spec.description}",
+                        actor_identity={"role": "semantic_ai"},
+                        inputs={"expected_behavior": spec.expected_behavior},
+                        preconditions=[],
+                        assertions=[{"check": spec.expected_behavior, "evidence": "ai_generated"}],
+                        execution_adapter=self._adapter,
+                        environment=self._env,
+                        genome_coordinates={"dimension": "semantic"},
+                        created_at=now,
+                    )
+                )
+            except Exception as exc:
+                log.warning("semantic_scenario_build_failed", error=str(exc))
+        return scenarios
+
+    async def compile_batch_async(self, cases: list[VerificationCase]) -> list[CompilationResult]:
+        return [await self.compile_async(c) for c in cases]
 
     def _extract_input_hints(self, case: VerificationCase) -> dict[str, str]:
         """

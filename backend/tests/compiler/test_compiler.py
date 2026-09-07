@@ -86,4 +86,4 @@ class TestVerificationCompiler:
     def test_unknown_surface_includes_semantic_note(self) -> None:
         compiler = VerificationCompiler()
         result = compiler.compile(_case())
-        assert any("Phase 9" in u for u in result.unknown_surface)
+        assert any("semantic" in u.lower() for u in result.unknown_surface)

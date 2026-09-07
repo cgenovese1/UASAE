@@ -15,7 +15,9 @@ import structlog
 
 from backend.adapters.base import ExecutionAdapter
 from backend.core.ontology import EvidenceBundle, Scenario, VerdictStatus
+from backend.evidence.store import EvidenceStore, InMemoryEvidenceStore
 from backend.evidence.verdict import evaluate
+from backend.evidence.verdict_store import InMemoryVerdictStore, VerdictStore
 from backend.execution.models import ExecutionConfig, ExecutionRun, ExecutionStore, RunStatus
 
 log = structlog.get_logger(__name__)
@@ -29,9 +31,16 @@ class ExecutionEngine:
     determines which adapter handles it. Unknown adapters produce BLOCKED.
     """
 
-    def __init__(self, store: ExecutionStore | None = None) -> None:
+    def __init__(
+        self,
+        store: ExecutionStore | None = None,
+        evidence_store: EvidenceStore | None = None,
+        verdict_store: VerdictStore | None = None,
+    ) -> None:
         self._adapters: dict[str, ExecutionAdapter] = {}
         self._store = store or ExecutionStore()
+        self._evidence_store = evidence_store or InMemoryEvidenceStore()
+        self._verdict_store = verdict_store or InMemoryVerdictStore()
 
     def register(self, adapter: ExecutionAdapter) -> None:
         self._adapters[adapter.name] = adapter
@@ -66,6 +75,9 @@ class ExecutionEngine:
             bundle: EvidenceBundle = await adapter.execute(scenario)
             verdict = evaluate(scenario, bundle)
             duration_ms = (time.monotonic() - t0) * 1000
+
+            await self._evidence_store.save(bundle)
+            await self._verdict_store.save(verdict)
 
             completed = self._store.complete(
                 run.id,

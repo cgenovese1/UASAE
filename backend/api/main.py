@@ -1,13 +1,17 @@
 """UASAE API — FastAPI application entry point."""
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from backend.core.auth import require_auth
 from backend.core.config import settings
+from backend.api.routes.evidence import router as evidence_router
+from backend.api.routes.execution import router as execution_router
+from backend.api.routes.mcp import router as mcp_router
 from backend.api.routes.projects import router as projects_router
 from backend.api.routes.verification import router as verification_router
-from backend.api.routes.execution import router as execution_router
-from backend.api.routes.evidence import router as evidence_router
+
+_auth = [Depends(require_auth)]
 
 app = FastAPI(
     title="UASAE",
@@ -26,10 +30,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(projects_router)
-app.include_router(verification_router)
-app.include_router(execution_router)
-app.include_router(evidence_router)
+app.include_router(projects_router, dependencies=_auth)
+app.include_router(verification_router, dependencies=_auth)
+app.include_router(execution_router, dependencies=_auth)
+app.include_router(evidence_router, dependencies=_auth)
+app.include_router(mcp_router, dependencies=_auth)
 
 
 @app.get("/api/health")

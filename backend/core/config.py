@@ -37,6 +37,7 @@ class Settings(BaseSettings):
 
     # Security
     secret_key: str = ""
+    supabase_jwt_secret: str = ""
     allowed_origins: list[str] = ["http://localhost:3000"]
 
 
